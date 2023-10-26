@@ -4,8 +4,8 @@ use std::fs;
 use std::process::Command;
 
 use clap::Parser;
-use log::{debug, info, trace};
-use narrate::{CliError, ErrorWrap, ExitCode, Result};
+use log::{debug, info, trace, warn};
+use narrate::{bail, CliError, ErrorWrap, ExitCode, Result};
 
 use self::conf::Conf;
 use crate::cli::Args;
@@ -38,6 +38,14 @@ fn app() -> Result<()> {
     }
     .wrap(CliError::Config)?;
     trace!("{conf:?}");
+
+    // Warn about unimplemented options
+    if args.mode.dry_run {
+        bail!("`--dry-run` option is unimplemented");
+    }
+    if args.mode.daemon {
+        bail!("`--daemon` option is unimplemented");
+    }
 
     // Perform an update
     update(&conf)?;
