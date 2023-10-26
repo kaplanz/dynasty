@@ -15,6 +15,16 @@ pub struct Args {
     #[arg(value_hint = ValueHint::FilePath)]
     pub conf: PathBuf,
 
+    // Execution mode.
+    //
+    // Determine how the application should be run.
+    #[clap(flatten)]
+    pub mode: Mode,
+}
+
+#[derive(clap::Args, Debug)]
+#[group(multiple = false)]
+pub struct Mode {
     /// Run as a daemon.
     ///
     /// Enables daemon mode, causing the program to block, periodically
