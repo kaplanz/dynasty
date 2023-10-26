@@ -6,3 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = { version = "4.4.7", features = ["wrap_help", "derive"] }
+env_logger = "0.10.0"
+log = "0.4.20"
+narrate = "0.4.1"
+reqwest = { version = "0.11.22", features = ["blocking", "json"] }
+serde = { version = "1.0.190", features = ["derive"] }
+serde_json = "1.0.107"
+strum = { version = "0.25.0", features = ["derive"] }
+thiserror = "1.0.50"
+toml = "0.8.4"
+url = "2.4.1"
