@@ -1,6 +1,13 @@
+use std::path::PathBuf;
+
 use serde::Deserialize;
 
 use crate::sv::Service;
+
+/// Configuration directory path.
+pub fn dir() -> PathBuf {
+    dirs::config_dir().unwrap().join("dynasty")
+}
 
 /// App configuration.
 #[derive(Debug, Deserialize)]
