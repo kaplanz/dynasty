@@ -14,10 +14,19 @@ pub fn dir() -> PathBuf {
 pub struct Conf {
     /// Daemon mode.
     pub daemon: Option<Daemon>,
+    #[serde(default = "Conf::resolver")]
     /// Public IP address resolver command.
     pub resolver: String,
     /// DNS provider services.
+    #[serde(default)]
     pub services: Vec<Service>,
+}
+
+impl Conf {
+    /// Default resolver using `opendns.com`.
+    fn resolver() -> String {
+        "dig @resolver4.opendns.com myip.opendns.com +short".to_string()
+    }
 }
 
 #[allow(unused)]
