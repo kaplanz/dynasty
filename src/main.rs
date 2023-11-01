@@ -1,11 +1,13 @@
 #![warn(clippy::pedantic)]
+#![allow(clippy::ignored_unit_patterns)]
 
-use std::fs;
 use std::process::Command;
+use std::{fs, io};
 
+use anstream::eprintln;
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use log::{debug, info, trace, warn};
-use narrate::{bail, CliError, ErrorWrap, ExitCode, Result};
 
 use self::conf::Conf;
 use crate::cli::Args;
@@ -13,16 +15,16 @@ use crate::sv::Provider;
 
 mod cli;
 mod conf;
+mod err;
 mod sv;
 
 fn main() {
-    if let Err(err) = app() {
-        narrate::report::err_full(&err);
-        std::process::exit(err.exit_code())
+    if let Err(err) = try_main() {
+        eprintln!("{err}", err = err::fmt::plain(&err));
     }
 }
 
-fn app() -> Result<()> {
+fn try_main() -> Result<()> {
     // Initialize logging
     env_logger::init();
     // Parse args
@@ -32,11 +34,15 @@ fn app() -> Result<()> {
     let conf: Conf = {
         // Read file
         let path = args.conf;
-        let read = fs::read_to_string(&path).wrap(CliError::ReadFile(path))?;
+        match fs::read_to_string(&path) {
+            Ok(read) => Ok(read),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(String::default()),
+            err => err.with_context(|| format!("could not read: `{}`", path.display())),
+        }
         // Parse conf
-        toml::from_str(&read)
+        .and_then(|read| toml::from_str(&read).context("could not parse file"))
     }
-    .wrap(CliError::Config)?;
+    .context("unable to load config")?;
     trace!("{conf:?}");
 
     // Warn about unimplemented options
@@ -60,7 +66,7 @@ fn update(conf: &Conf) -> Result<()> {
         .arg("-c")
         .arg(&conf.resolver)
         .output()
-        .wrap("resolver failed")?;
+        .context("failed to execute resolver")?;
     let addr = std::str::from_utf8(&out.stdout)?.parse()?;
     info!("resolved public address: {addr}");
     // Update each service
@@ -69,13 +75,13 @@ fn update(conf: &Conf) -> Result<()> {
             // Perform the update
             .update(addr)
             // Report configuration errors
-            .wrap_with(|| format!("configuration: {service}"))?
+            .with_context(|| format!("misconfigured service: {service}"))?
             // Report API errors
             .error_for_status()
-            .wrap_with(|| format!("status error: {service}"))?;
+            .with_context(|| format!("failed with status: {service}"))?;
         trace!("{res:?}");
         // Report response
-        service.report(res).wrap("reporting error")?;
+        service.report(res).context("failed to generate report")?;
 
         Ok(())
     })
