@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use serde::Deserialize;
 
@@ -32,6 +33,7 @@ impl Conf {
 #[allow(unused)]
 #[derive(Debug, Deserialize)]
 pub struct Daemon {
-    /// Timeout (in seconds) after which DNS must be re-synced.
-    pub timeout: u32,
+    /// Timeout after which DNS must be re-synced.
+    #[serde(deserialize_with = "duration_str::deserialize_duration")]
+    pub timeout: Duration,
 }
