@@ -1,7 +1,7 @@
 use std::net::IpAddr;
 
 use log::trace;
-use reqwest::blocking::{Client, Request, Response};
+use reqwest::{Client, Request, Response};
 use serde::Deserialize;
 use strum::Display;
 use thiserror::Error;
@@ -31,14 +31,15 @@ pub enum Service {
 
 impl Service {
     /// Update DNS records for this service.
-    pub fn update(&self, addr: IpAddr) -> Result<Response, Error> {
+    #[allow(unused)]
+    pub async fn update(&self, addr: IpAddr) -> Result<Response, Error> {
         // Prepare an API request to the service
         let req = self.request(addr)?;
         trace!("{req:?}");
         // Create a client
         let client = Client::new();
         // Execute the request
-        client.execute(req).map_err(Error::Reqwest)
+        client.execute(req).await.map_err(Error::Reqwest)
     }
 }
 
