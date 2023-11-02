@@ -1,6 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::ignored_unit_patterns)]
 
+use std::net::IpAddr;
 use std::process::Command;
 use std::thread::sleep;
 use std::{fs, io};
@@ -76,14 +77,7 @@ fn try_main() -> Result<()> {
     let mut prev = None; // keep last public address
     for () in iter {
         // Resolve public IP address
-        debug!("querying public address: `{cmd}`", cmd = conf.resolver);
-        let out = Command::new("sh")
-            .arg("-c")
-            .arg(&conf.resolver)
-            .output()
-            .context("failed to execute resolver")?;
-        let addr = std::str::from_utf8(&out.stdout)?.parse()?;
-        debug!("resolved public address: {addr}");
+        let addr = resolve(&conf.resolver)?;
         // Check if public address updated
         if prev.is_some() && prev != Some(addr) {
             info!("public address changed: {addr}");
@@ -137,4 +131,20 @@ fn try_main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Resolve current server public address.
+fn resolve(cmd: &String) -> Result<IpAddr> {
+    // Query IP using external resolver command
+    debug!("querying public address: `{cmd}`");
+    let out = Command::new("sh")
+        .arg("-c")
+        .arg(cmd)
+        .output()
+        .context("failed to execute resolver")?;
+    // Parse command output into IP
+    let addr = std::str::from_utf8(&out.stdout)?.parse()?;
+    debug!("resolved public address: {addr}");
+
+    Ok(addr)
 }
