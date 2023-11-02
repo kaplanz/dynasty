@@ -49,9 +49,6 @@ fn try_main() -> Result<()> {
     trace!("{conf:?}");
 
     // Warn about unimplemented options
-    if args.mode.dry_run {
-        bail!("`--dry-run` option is unimplemented");
-    }
     if args.mode.daemon {
         bail!("`--daemon` option is unimplemented");
     }
@@ -66,7 +63,7 @@ fn try_main() -> Result<()> {
     let addr = std::str::from_utf8(&out.stdout)?.parse()?;
     debug!("resolved public address: {addr}");
     // Create HTTP requests
-    let requests: Vec<_> = conf
+    let mut requests: Vec<_> = conf
         .services
         .iter()
         .map(|service| service.request(addr))
@@ -76,6 +73,10 @@ fn try_main() -> Result<()> {
         })
         .filter_map(Result::ok)
         .collect();
+    // Don't send any requests on a dry run
+    if args.mode.dry_run {
+        requests.clear();
+    }
     // Asynchronously update services
     let client = Client::new();
     let responses = smol::block_on(Compat::new(async {
