@@ -22,7 +22,7 @@ pub struct Cloudflare {
 impl Provider for Cloudflare {
     type Error = Error;
 
-    fn request(&self, dns: IpAddr) -> Result<Request, Self::Error> {
+    fn request(&self, addr: IpAddr) -> Result<Request, Self::Error> {
         // Extract parts
         let Self {
             token,
@@ -40,7 +40,7 @@ impl Provider for Cloudflare {
         headers.insert("Content-Type", "application/json".parse().unwrap());
         // Attach data
         let data = json!({
-            "content": dns,
+            "content": addr,
         });
         *req.body_mut() = Some(Body::from(data.to_string()));
 
