@@ -2,14 +2,15 @@
 #![allow(clippy::ignored_unit_patterns)]
 
 use std::process::Command;
+use std::thread::sleep;
 use std::{fs, io};
 
 use anstream::eprintln;
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use async_compat::Compat;
 use clap::Parser;
 use futures::future;
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 use reqwest::Client;
 
 use self::conf::Conf;
@@ -48,65 +49,90 @@ fn try_main() -> Result<()> {
     .context("unable to load config")?;
     trace!("{conf:?}");
 
-    // Warn about unimplemented options
-    if args.mode.daemon {
-        bail!("`--daemon` option is unimplemented");
-    }
-
-    // Resolve public IP address
-    debug!("querying public address: `{cmd}`", cmd = conf.resolver);
-    let out = Command::new("sh")
-        .arg("-c")
-        .arg(&conf.resolver)
-        .output()
-        .context("failed to execute resolver")?;
-    let addr = std::str::from_utf8(&out.stdout)?.parse()?;
-    debug!("resolved public address: {addr}");
-    // Create HTTP requests
-    let mut requests: Vec<_> = conf
-        .services
-        .iter()
-        .map(|service| service.request(addr))
-        .inspect(|req| match req {
-            Ok(req) => trace!("{req:?}"),
-            Err(err) => warn!("{err}"),
-        })
-        .filter_map(Result::ok)
-        .collect();
-    // Don't send any requests on a dry run
-    if args.mode.dry_run {
-        requests.clear();
-    }
-    // Asynchronously update services
-    let client = Client::new();
-    let responses = smol::block_on(Compat::new(async {
-        future::join_all(requests.into_iter().map(|req| {
-            let client = &client;
-            async move {
-                client
-                    // Execute the request
-                    .execute(req)
-                    .await
-                    // Report execution errors
-                    .map_err(sv::Error::Reqwest)?
-                    // Report API errors
-                    .error_for_status()
-                    .context("failed with status")
-            }
-        }))
-        .await
-    }));
-    // Report service responses
-    responses
-        .into_iter()
-        .zip(&conf.services)
-        // Report this result, forwarding errors
-        .map(|(res, sv)| sv.report(res?).context("failed to generate report"))
-        // Report errors
-        .filter_map(Result::err)
-        .for_each(|err| {
-            eprintln!("{err}", err = err::fmt::plain(&err));
+    // Determine iteration length
+    let iter: Box<dyn Iterator<Item = ()>> = if args.mode.daemon {
+        // Extract daemon duration
+        let dur = conf
+            .daemon
+            .ok_or(anyhow!("daemon is not configured"))?
+            .timeout;
+        // Iterate with a delay
+        let delay = std::iter::from_fn(move || {
+            sleep(dur);
+            Some(())
         });
+        // First iteration should occur immediately
+        let first = std::iter::once(());
+        // Chain iterators together
+        Box::new(first.chain(delay))
+    } else {
+        // Iterate exactly once
+        Box::new(std::iter::once(()))
+    };
+
+    // Perform DNS updates
+    let mut prev = None; // keep last public address
+    for () in iter {
+        // Resolve public IP address
+        debug!("querying public address: `{cmd}`", cmd = conf.resolver);
+        let out = Command::new("sh")
+            .arg("-c")
+            .arg(&conf.resolver)
+            .output()
+            .context("failed to execute resolver")?;
+        let addr = std::str::from_utf8(&out.stdout)?.parse()?;
+        debug!("resolved public address: {addr}");
+        // Check if public address updated
+        if prev.is_some() && prev != Some(addr) {
+            info!("public address changed: {addr}");
+        }
+        prev = Some(addr);
+        // Create HTTP requests
+        let mut requests: Vec<_> = conf
+            .services
+            .iter()
+            .map(|service| service.request(addr))
+            .inspect(|req| match req {
+                Ok(req) => trace!("{req:?}"),
+                Err(err) => warn!("{err}"),
+            })
+            .filter_map(Result::ok)
+            .collect();
+        // Don't send any requests on a dry run
+        if args.mode.dry_run {
+            requests.clear();
+        }
+        // Asynchronously update services
+        let client = Client::new();
+        let responses = smol::block_on(Compat::new(async {
+            future::join_all(requests.into_iter().map(|req| {
+                let client = &client;
+                async move {
+                    client
+                        // Execute the request
+                        .execute(req)
+                        .await
+                        // Report execution errors
+                        .map_err(sv::Error::Reqwest)?
+                        // Report API errors
+                        .error_for_status()
+                        .context("failed with status")
+                }
+            }))
+            .await
+        }));
+        // Report service responses
+        responses
+            .into_iter()
+            .zip(&conf.services)
+            // Report this result, forwarding errors
+            .map(|(res, sv)| sv.report(res?).context("failed to generate report"))
+            // Report errors
+            .filter_map(Result::err)
+            .for_each(|err| {
+                eprintln!("{err}", err = err::fmt::plain(&err));
+            });
+    }
 
     Ok(())
 }
