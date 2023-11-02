@@ -40,8 +40,10 @@ fn try_main() -> Result<()> {
         let path = args.conf;
         match fs::read_to_string(&path) {
             Ok(read) => Ok(read),
-            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(String::default()),
-            err => err.with_context(|| format!("could not read: `{}`", path.display())),
+            Err(err) => match err.kind() {
+                io::ErrorKind::NotFound => Ok(String::default()),
+                _ => Err(err).with_context(|| format!("could not read: `{}`", path.display())),
+            },
         }
         // Parse conf
         .and_then(|read| toml::from_str(&read).context("could not parse file"))
