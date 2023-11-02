@@ -4,7 +4,7 @@ use log::debug;
 use reqwest::blocking::{Body, Request, Response};
 use reqwest::Method;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use thiserror::Error;
 
 use super::Provider;
@@ -54,12 +54,19 @@ impl Provider for Cloudflare {
             .get("result")
             .ok_or_else(|| Error::Report(res.clone()))?;
         // Report attributes
-        let name = res.get("name").ok_or_else(|| Error::Report(res.clone()))?;
-        let kind = res.get("type").ok_or_else(|| Error::Report(res.clone()))?;
+        let name = res
+            .get("name")
+            .and_then(Value::as_str)
+            .ok_or_else(|| Error::Report(res.clone()))?;
+        let kind = res
+            .get("type")
+            .and_then(Value::as_str)
+            .ok_or_else(|| Error::Report(res.clone()))?;
         let addr = res
             .get("content")
+            .and_then(Value::as_str)
             .ok_or_else(|| Error::Report(res.clone()))?;
-        debug!("updated {kind} record for {name}: {addr}");
+        debug!("updated {name}: {kind} record: {addr}");
 
         Ok(())
     }
