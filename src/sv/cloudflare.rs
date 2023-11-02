@@ -1,8 +1,7 @@
 use std::net::IpAddr;
 
 use log::debug;
-use reqwest::blocking::{Body, Request, Response};
-use reqwest::Method;
+use reqwest::{Body, Method, Request, Response};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use thiserror::Error;
@@ -49,7 +48,7 @@ impl Provider for Cloudflare {
 
     fn report(&self, res: Response) -> Result<(), Self::Error> {
         // Extract results from response
-        let res: serde_json::Value = res.json()?;
+        let res: serde_json::Value = smol::block_on(async { res.json().await })?;
         let res = res
             .get("result")
             .ok_or_else(|| Error::Report(res.clone()))?;
