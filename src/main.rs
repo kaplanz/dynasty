@@ -6,8 +6,11 @@ use std::{fs, io};
 
 use anstream::eprintln;
 use anyhow::{bail, Context, Result};
+use async_compat::Compat;
 use clap::Parser;
+use futures::future;
 use log::{debug, trace, warn};
+use reqwest::Client;
 
 use self::conf::Conf;
 use crate::cli::Args;
@@ -69,20 +72,47 @@ fn update(conf: &Conf) -> Result<()> {
         .context("failed to execute resolver")?;
     let addr = std::str::from_utf8(&out.stdout)?.parse()?;
     debug!("resolved public address: {addr}");
-    // Update each service
-    conf.services.iter().try_for_each(|service| {
-        let res = service
-            // Perform the update
-            .update(addr)
-            // Report configuration errors
-            .with_context(|| format!("misconfigured service: {service}"))?
-            // Report API errors
-            .error_for_status()
-            .with_context(|| format!("failed with status: {service}"))?;
-        trace!("{res:?}");
-        // Report response
-        service.report(res).context("failed to generate report")?;
+    // Create HTTP requests
+    let requests: Vec<_> = conf
+        .services
+        .iter()
+        .map(|service| service.request(addr))
+        .inspect(|req| match req {
+            Ok(req) => trace!("{req:?}"),
+            Err(err) => warn!("{err}"),
+        })
+        .filter_map(Result::ok)
+        .collect();
+    // Asynchronously update services
+    let client = Client::new();
+    let responses = smol::block_on(Compat::new(async {
+        future::join_all(requests.into_iter().map(|req| {
+            let client = &client;
+            async move {
+                client
+                    // Execute the request
+                    .execute(req)
+                    .await
+                    // Report execution errors
+                    .map_err(sv::Error::Reqwest)?
+                    // Report API errors
+                    .error_for_status()
+                    .context("failed with status")
+            }
+        }))
+        .await
+    }));
+    // Report service responses
+    responses
+        .into_iter()
+        .zip(&conf.services)
+        // Report this result, forwarding errors
+        .map(|(res, sv)| sv.report(res?).context("failed to generate report"))
+        // Report errors
+        .filter_map(Result::err)
+        .for_each(|err| {
+            eprintln!("{err}", err = err::fmt::plain(&err));
+        });
 
-        Ok(())
-    })
+    Ok(())
 }
