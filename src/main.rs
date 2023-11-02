@@ -7,7 +7,7 @@ use std::thread::sleep;
 use std::{fs, io};
 
 use anstream::eprintln;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use async_compat::Compat;
 use clap::Parser;
 use futures::future;
@@ -77,7 +77,7 @@ fn try_main() -> Result<()> {
     let mut prev = None; // keep last public address
     for () in iter {
         // Resolve public IP address
-        let addr = resolve(&conf.resolver)?;
+        let addr = resolve(&conf.resolver).context("failed to run resolver")?;
         // Check if public address updated
         if prev.is_some() && prev != Some(addr) {
             info!("public address changed: {addr}");
@@ -135,11 +135,17 @@ fn try_main() -> Result<()> {
 
 /// Resolve current server public address.
 fn resolve(cmd: &String) -> Result<IpAddr> {
-    // Query IP using external resolver command
+    // Lexically tokenize resolver command
+    let mut tokens = shlex::split(cmd).ok_or(anyhow!("failed to lex resolver: `{cmd}`"))?;
+    if tokens.is_empty() {
+        bail!("resolver command is empty");
+    }
+    let (prog, args) = (tokens.remove(0), tokens);
+    trace!("program: `{prog}`, args: {args:?}");
+    // Query IP using external resolver
     debug!("querying public address: `{cmd}`");
-    let out = Command::new("sh")
-        .arg("-c")
-        .arg(cmd)
+    let out = Command::new(prog)
+        .args(args)
         .output()
         .context("failed to execute resolver")?;
     // Parse command output into IP
