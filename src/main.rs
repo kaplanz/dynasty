@@ -56,13 +56,6 @@ fn try_main() -> Result<()> {
         bail!("`--daemon` option is unimplemented");
     }
 
-    // Perform an update
-    update(&conf)?;
-
-    Ok(())
-}
-
-fn update(conf: &Conf) -> Result<()> {
     // Resolve public IP address
     debug!("querying public address: `{cmd}`", cmd = conf.resolver);
     let out = Command::new("sh")
