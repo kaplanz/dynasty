@@ -7,7 +7,7 @@ use std::{fs, io};
 use anstream::eprintln;
 use anyhow::{bail, Context, Result};
 use clap::Parser;
-use log::{debug, info, trace, warn};
+use log::{debug, trace, warn};
 
 use self::conf::Conf;
 use crate::cli::Args;
@@ -68,7 +68,7 @@ fn update(conf: &Conf) -> Result<()> {
         .output()
         .context("failed to execute resolver")?;
     let addr = std::str::from_utf8(&out.stdout)?.parse()?;
-    info!("resolved public address: {addr}");
+    debug!("resolved public address: {addr}");
     // Update each service
     conf.services.iter().try_for_each(|service| {
         let res = service
