@@ -15,7 +15,7 @@ pub trait Provider {
     type Error;
 
     /// Prepares a request using the provider's API.
-    fn request(&self, dns: IpAddr) -> Result<Request, Self::Error>;
+    fn request(&self, addr: IpAddr) -> Result<Request, Self::Error>;
 
     /// Reports on a response from the provider.
     fn report(&self, res: Response) -> Result<(), Self::Error>;
@@ -31,9 +31,9 @@ pub enum Service {
 
 impl Service {
     /// Update DNS records for this service.
-    pub fn update(&self, dns: IpAddr) -> Result<Response, Error> {
+    pub fn update(&self, addr: IpAddr) -> Result<Response, Error> {
         // Prepare an API request to the service
-        let req = self.request(dns)?;
+        let req = self.request(addr)?;
         trace!("{req:?}");
         // Create a client
         let client = Client::new();
@@ -45,9 +45,9 @@ impl Service {
 impl Provider for Service {
     type Error = Error;
 
-    fn request(&self, dns: IpAddr) -> Result<Request, Self::Error> {
+    fn request(&self, addr: IpAddr) -> Result<Request, Self::Error> {
         match self {
-            Service::Cloudflare(sv) => sv.request(dns).map_err(Error::Cloudflare),
+            Service::Cloudflare(sv) => sv.request(addr).map_err(Error::Cloudflare),
         }
     }
 
