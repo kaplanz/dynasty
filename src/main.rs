@@ -149,7 +149,7 @@ fn resolve(cmd: &String) -> Result<IpAddr> {
         .output()
         .context("failed to execute resolver")?;
     // Parse command output into IP
-    let addr = std::str::from_utf8(&out.stdout)?.parse()?;
+    let addr = std::str::from_utf8(&out.stdout)?.trim().parse()?;
     debug!("resolved public address: {addr}");
 
     Ok(addr)
