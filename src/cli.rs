@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, ValueHint};
+use clap_verbosity_flag::Verbosity;
 
 use crate::conf;
 
@@ -20,8 +21,12 @@ pub struct Args {
     // Execution mode.
     //
     // Determine how the application should be run.
-    #[clap(flatten)]
+    #[command(flatten)]
     pub mode: Mode,
+
+    /// Logging verbosity.
+    #[command(flatten)]
+    pub verbose: Verbosity,
 }
 
 #[derive(clap::Args, Debug)]
