@@ -30,11 +30,13 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
-    // Initialize logging
-    env_logger::init();
     // Parse args
     let args = Args::parse();
     trace!("{args:?}");
+    // Initialize logging
+    env_logger::builder()
+        .filter_level(args.verbose.log_level_filter())
+        .init();
     // Parse conf
     let conf: Conf = {
         // Read file
