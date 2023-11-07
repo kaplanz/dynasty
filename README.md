@@ -11,8 +11,15 @@ support for another service!
 
 ## Install
 
-Currently, Dynasty must be installed from source. To do so, first install Rust
-(with Cargo), next clone this repository, and build with:
+### Releases
+
+Whenever Dynasty publishes a new release, pre-compiled binaries will be made
+available for download on the [releases page][releases].
+
+### Source
+
+To install Dynasty from source, install Rust (with Cargo), clone this
+repository, and build with:
 
 ```shell
 cargo build --release
@@ -104,5 +111,6 @@ automatically run Dynasty on startup if you're using it in daemon mode.
 [dirs]:       https://docs.rs/dirs/latest/dirs/fn.config_dir.html
 [inadyn]:     https://github.com/troglobit/inadyn
 [init]:       https://en.wikipedia.org/wiki/Init
+[releases]:   https://github.com/kaplanz/dynasty/releases
 [runit]:      http://smarden.org/runit/
 [systemd]:    https://systemd.io
