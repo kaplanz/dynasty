@@ -59,8 +59,8 @@ release:
     @cargo build --all-targets --release
 
 # run binary
-run rom:
-    @cargo run --release -- --check "{{ rom }}"
+run *opts:
+    @cargo run --release -- {{ opts }}
 
 # perform tests
 test *opts:
