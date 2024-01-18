@@ -3,6 +3,7 @@
 # dynasty
 
 [![Rust][ci.rust.badge]][ci.rust.hyper]
+[![dependency status][deps.badge]][deps.hyper]
 
 </div>
 
@@ -120,3 +121,5 @@ automatically run Dynasty on startup if you're using it in daemon mode.
 <!-- Reference-style badges -->
 [ci.rust.badge]: /../../actions/workflows/rust.yml/badge.svg
 [ci.rust.hyper]: /../../actions/workflows/rust.yml
+[deps.badge]:    https://deps.rs/repo/github/kaplanz/dynasty/status.svg
+[deps.hyper]:    https://deps.rs/repo/github/kaplanz/dynasty
