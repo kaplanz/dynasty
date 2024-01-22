@@ -14,12 +14,12 @@ use futures::future;
 use log::{debug, info, trace, warn};
 use reqwest::Client;
 
-use self::conf::Conf;
+use self::cfg::Config;
 use crate::cli::Args;
 use crate::sv::Provider;
 
+mod cfg;
 mod cli;
-mod conf;
 mod err;
 mod sv;
 
@@ -38,7 +38,7 @@ fn try_main() -> Result<()> {
         .filter_level(args.verbose.log_level_filter())
         .init();
     // Parse conf
-    let conf: Conf = {
+    let conf: Config = {
         // Read file
         let path = args.conf;
         match fs::read_to_string(&path) {
