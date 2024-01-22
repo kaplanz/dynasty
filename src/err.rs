@@ -11,8 +11,8 @@ pub mod fmt {
     struct Plain<'a>(&'a Error);
 
     impl Plain<'_> {
-        const ERROR: &str = "error";
-        const CAUSE: &str = "cause";
+        const ERROR: &'static str = "error";
+        const CAUSE: &'static str = "cause";
 
         const BOLD: Style = Style::new().bold();
         const STYLE: Style = AnsiColor::Red.on_default();
