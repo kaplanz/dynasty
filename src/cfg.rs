@@ -12,18 +12,18 @@ pub fn dir() -> PathBuf {
 
 /// App configuration.
 #[derive(Debug, Deserialize)]
-pub struct Conf {
+pub struct Config {
     /// Daemon mode.
     pub daemon: Option<Daemon>,
-    #[serde(default = "Conf::resolver")]
     /// Public IP address resolver command.
+    #[serde(default = "Config::resolver")]
     pub resolver: String,
     /// DNS provider services.
     #[serde(default)]
     pub services: Vec<Service>,
 }
 
-impl Conf {
+impl Config {
     /// Default resolver using `opendns.com`.
     fn resolver() -> String {
         "dig @resolver4.opendns.com myip.opendns.com +short".to_string()

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::{Parser, ValueHint};
 use clap_verbosity_flag::Verbosity;
 
-use crate::conf;
+use crate::cfg;
 
 /// Dynamic DNS Client.
 #[derive(Debug, Parser)]
@@ -14,7 +14,7 @@ pub struct Args {
     /// Path to the configuration file. Used to control services for DNS
     /// providers, define daemon parameters, and other options.
     #[arg(short, long)]
-    #[arg(default_value = conf::dir().join("config.toml").into_os_string())]
+    #[arg(default_value = cfg::dir().join("config.toml").into_os_string())]
     #[arg(value_hint = ValueHint::FilePath)]
     pub conf: PathBuf,
 
