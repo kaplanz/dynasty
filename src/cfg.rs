@@ -1,8 +1,10 @@
 //! Application configuration.
 
+use std::convert::Infallible;
 use std::io::ErrorKind::NotFound;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::time::Duration;
 use std::{fs, io};
 
@@ -21,9 +23,11 @@ pub struct Config {
     #[clap(skip)]
     pub daemon: Option<Daemon>,
 
-    /// Public IP address resolver command.
-    #[clap(skip)]
-    pub resolver: Resolver,
+    /// Address resolution command.
+    ///
+    /// The command to be used in resolving the host's public IP address.
+    #[clap(long, name = "CMD")]
+    pub resolver: Option<Resolver>,
 
     /// DNS provider services.
     #[clap(skip)]
@@ -32,7 +36,7 @@ pub struct Config {
 }
 
 /// Resolver command.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Resolver(String);
 
 impl Deref for Resolver {
@@ -43,9 +47,19 @@ impl Deref for Resolver {
     }
 }
 
+impl FromStr for Resolver {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.into()))
+    }
+}
+
 impl Default for Resolver {
     fn default() -> Self {
-        Self("dig @resolver4.opendns.com myip.opendns.com +short".into())
+        "dig @resolver4.opendns.com myip.opendns.com +short"
+            .parse()
+            .unwrap()
     }
 }
 
@@ -98,7 +112,7 @@ impl Config {
     /// from the cli to those saved on-disk. To do so, prefer keeping data
     /// fields from `self` when conflicting with `other`.
     pub fn merge(&mut self, other: Self) {
-        drop(other);
+        self.resolver = self.resolver.take().or(other.resolver);
     }
 }
 

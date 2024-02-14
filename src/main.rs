@@ -76,11 +76,13 @@ fn run(args: Cli) -> anyhow::Result<()> {
         Box::new(std::iter::once(()))
     };
 
+    // Extract the resolver
+    let cmd = args.cfg.resolver.unwrap_or_default();
     // Perform DNS updates
     let mut prev = None; // keep last public address
     for () in iter {
         // Resolve public IP address
-        let addr = resolve(&args.cfg.resolver).context("failed to run resolver")?;
+        let addr = resolve(&cmd).context("failed to run resolver")?;
         // Check if public address updated
         if prev.is_some() && prev != Some(addr) {
             info!("public address changed: {addr}");
