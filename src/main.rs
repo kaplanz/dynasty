@@ -1,63 +1,64 @@
 #![warn(clippy::pedantic)]
-#![allow(clippy::ignored_unit_patterns)]
 
 use std::net::IpAddr;
 use std::process::Command;
 use std::thread::sleep;
-use std::{fs, io};
 
-use anstream::eprintln;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Context};
 use async_compat::Compat;
-use clap::Parser;
+use clap::{crate_name as name, Parser};
 use futures::future;
 use log::{debug, info, trace, warn};
 use reqwest::Client;
 
-use self::cfg::Config;
-use crate::cli::Args;
+use crate::cfg::Config;
+use crate::cli::Cli;
+use crate::err::{Exit, Result};
 use crate::sv::Provider;
 
-mod cfg;
-mod cli;
-mod err;
-mod sv;
+pub mod cfg;
+pub mod cli;
+pub mod err;
+pub mod sv;
 
-fn main() {
-    if let Err(err) = try_main() {
-        eprintln!("{err}", err = err::fmt::plain(&err));
-    }
-}
+/// Name of this crate.
+///
+/// This may be used for base subdirectories.
+pub const NAME: &str = name!();
 
-fn try_main() -> Result<()> {
+fn main() -> Exit {
     // Parse args
-    let args = Args::parse();
-    trace!("{args:?}");
-    // Initialize logging
+    let mut args = Cli::parse();
+    // Load config
+    args.cfg.merge({
+        match Config::load(&args.conf) {
+            Ok(conf) => conf,
+            Err(err) => return err.into(),
+        }
+    });
+    // Initialize logger
     env_logger::builder()
         .filter_level(args.verbose.log_level_filter())
         .init();
-    // Parse conf
-    let conf: Config = {
-        // Read file
-        let path = args.conf;
-        match fs::read_to_string(&path) {
-            Ok(read) => Ok(read),
-            Err(err) => match err.kind() {
-                io::ErrorKind::NotFound => Ok(String::default()),
-                _ => Err(err).with_context(|| format!("could not read: `{}`", path.display())),
-            },
-        }
-        // Parse conf
-        .and_then(|read| toml::from_str(&read).context("could not parse file"))
-    }
-    .context("unable to load config")?;
-    trace!("{conf:?}");
+    // Log previous steps
+    trace!("{args:?}");
 
+    // Run application
+    match run(args) {
+        Ok(()) => (),
+        Err(err) => return err.into(),
+    }
+
+    // Terminate normally
+    Exit::Success
+}
+
+fn run(args: Cli) -> anyhow::Result<()> {
     // Determine iteration length
-    let iter: Box<dyn Iterator<Item = ()>> = if args.mode.daemon {
+    let iter: Box<dyn Iterator<Item = ()>> = if args.run.daemon {
         // Extract daemon duration
-        let dur = conf
+        let dur = args
+            .cfg
             .daemon
             .ok_or(anyhow!("daemon is not configured"))?
             .timeout;
@@ -79,14 +80,15 @@ fn try_main() -> Result<()> {
     let mut prev = None; // keep last public address
     for () in iter {
         // Resolve public IP address
-        let addr = resolve(&conf.resolver).context("failed to run resolver")?;
+        let addr = resolve(&args.cfg.resolver).context("failed to run resolver")?;
         // Check if public address updated
         if prev.is_some() && prev != Some(addr) {
             info!("public address changed: {addr}");
         }
         prev = Some(addr);
         // Create HTTP requests
-        let mut requests: Vec<_> = conf
+        let mut requests: Vec<_> = args
+            .cfg
             .services
             .iter()
             .map(|service| service.request(addr))
@@ -97,7 +99,7 @@ fn try_main() -> Result<()> {
             .filter_map(Result::ok)
             .collect();
         // Don't send any requests on a dry run
-        if args.mode.dry_run {
+        if args.run.dry_run {
             requests.clear();
         }
         // Asynchronously update services
@@ -122,13 +124,13 @@ fn try_main() -> Result<()> {
         // Report service responses
         responses
             .into_iter()
-            .zip(&conf.services)
+            .zip(&args.cfg.services)
             // Report this result, forwarding errors
             .map(|(res, sv)| sv.report(res?).context("failed to generate report"))
             // Report errors
             .filter_map(Result::err)
             .for_each(|err| {
-                eprintln!("{err}", err = err::fmt::plain(&err));
+                advise::error!("{err:#}");
             });
     }
 
@@ -136,7 +138,7 @@ fn try_main() -> Result<()> {
 }
 
 /// Resolve current server public address.
-fn resolve(cmd: &String) -> Result<IpAddr> {
+fn resolve(cmd: &String) -> anyhow::Result<IpAddr> {
     // Lexically tokenize resolver command
     let mut tokens = shlex::split(cmd).ok_or(anyhow!("failed to lex resolver: `{cmd}`"))?;
     if tokens.is_empty() {
