@@ -1,47 +1,60 @@
+//! Command-line interface.
+
 use std::path::PathBuf;
 
-use clap::{Parser, ValueHint};
+use clap::{Args, Parser, ValueHint};
 use clap_verbosity_flag::Verbosity;
 
-use crate::cfg;
+use crate::cfg::Config;
 
-/// Dynamic DNS Client.
+/// Dynamic DNS client.
+///
+/// Dynasty is a dynamic DNS client written in Rust and designed to be easily
+/// extensible to support any DNS provider service.
 #[derive(Debug, Parser)]
-#[command(author, version, about)]
-pub struct Args {
+#[clap(author, version, about, long_about)]
+pub struct Cli {
     /// Configuration file.
     ///
-    /// Path to the configuration file. Used to control services for DNS
-    /// providers, define daemon parameters, and other options.
-    #[arg(short, long)]
-    #[arg(default_value = cfg::dir().join("config.toml").into_os_string())]
-    #[arg(value_hint = ValueHint::FilePath)]
+    /// When options are specified in multiple locations, they will be applied
+    /// with the following precedence: cli > env > file.
+    #[clap(long, value_name = "PATH")]
+    #[clap(default_value_os_t = Config::path())]
+    #[clap(value_hint = ValueHint::FilePath)]
     pub conf: PathBuf,
+
+    /// Configuration data.
+    #[clap(flatten)]
+    #[clap(next_help_heading = "Config")]
+    pub cfg: Config,
 
     // Execution mode.
     //
     // Determine how the application should be run.
     #[clap(flatten)]
-    pub mode: Mode,
+    #[clap(next_help_heading = None)]
+    pub run: Runtime,
 
-    #[command(flatten)]
+    #[clap(flatten)]
+    #[clap(next_help_heading = None)]
     pub verbose: Verbosity,
 }
 
-#[derive(clap::Args, Debug)]
+#[derive(Args, Debug)]
 #[group(multiple = false)]
-pub struct Mode {
+pub struct Runtime {
     /// Run as a daemon.
     ///
     /// Enables daemon mode, causing the program to block, periodically
     /// refreshing DNS entries as configured.
-    #[arg(short, long)]
+    #[clap(short, long)]
     pub daemon: bool,
 
     /// Perform a dry run.
     ///
     /// Run without modifying any DNS records. This is useful for testing
     /// configuration.
-    #[arg(short = 'n', long)]
+    #[clap(short = 'n', long)]
+    #[clap(conflicts_with = "daemon")]
     pub dry_run: bool,
 }
