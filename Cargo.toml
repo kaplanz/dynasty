@@ -1,17 +1,25 @@
 [package]
 name = "dynasty"
 version = "0.1.0"
+authors = { workspace = true }
 edition = "2021"
-repository = "https://github.com/kaplanz/dynasty"
+repository = { workspace = true }
+license = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace.package]
+authors = ["Zakhary Kaplan <me@zakhary.dev"]
+repository = "https://github.com/kaplanz/dynasty"
+license = "MIT OR Apache-2.0"
+
 [dependencies]
+advise = "0.1.0"
 anstream = "0.6.9"
 anstyle = "1.0.4"
 anyhow = "1.0.79"
 async-compat = "0.2.3"
-clap = { version = "4.4.18", features = ["wrap_help", "derive", "string"] }
+clap = { version = "4.5.0", features = ["cargo", "derive", "env", "wrap_help"] }
 clap-verbosity-flag = "2.1.2"
 dirs = "5.0.1"
 duration-str = "0.7.1"
@@ -24,6 +32,8 @@ serde_json = "1.0.111"
 shlex = "1.2.0"
 smol = "2.0.0"
 strum = { version = "0.25.0", features = ["derive"] }
+sysexits = "0.7.11"
 thiserror = "1.0.56"
 toml = "0.8.8"
 url = "2.5.0"
+xdir = "0.1.0"

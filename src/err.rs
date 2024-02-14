@@ -1,46 +1,68 @@
-pub mod fmt {
-    use std::fmt::Display;
+//! Error types.
 
-    use anstyle::{AnsiColor, Reset, Style};
-    use anyhow::Error;
+use std::process::{ExitCode, Termination};
 
-    pub fn plain(err: &Error) -> impl Display {
-        format!("{}", Plain(err))
+use thiserror::Error;
+
+use crate::{cfg, sv};
+
+/// A convenient type alias for application errors.
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+/// A top-level error caused within the application.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum Error {
+    /// Configuration errors.
+    #[error(transparent)]
+    Config(#[from] cfg::Error),
+    /// Service error.
+    #[error(transparent)]
+    Service(#[from] sv::Error),
+    /// Catchall error variant.
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
+
+impl From<Error> for ExitCode {
+    fn from(err: Error) -> Self {
+        match err {
+            Error::Config(_) => sysexits::ExitCode::Config.into(),
+            Error::Service(_) => sysexits::ExitCode::Protocol.into(),
+            _ => ExitCode::FAILURE,
+        }
     }
+}
 
-    struct Plain<'a>(&'a Error);
+/// Application exit conditions.
+///
+/// In the `Termination` implementation for `Exit`, we print any errors that
+/// occur for the user.
+#[derive(Debug)]
+pub enum Exit {
+    /// Exit success.
+    Success,
+    /// Exit failure.
+    ///
+    /// Advises the user about the [error][`enum@Error`], returning a non-zero
+    /// [exit code][`ExitCode`].
+    Failure(Error),
+}
 
-    impl Plain<'_> {
-        const ERROR: &'static str = "error";
-        const CAUSE: &'static str = "cause";
-
-        const BOLD: Style = Style::new().bold();
-        const STYLE: Style = AnsiColor::Red.on_default();
+impl<E: Into<Error>> From<E> for Exit {
+    fn from(err: E) -> Self {
+        Self::Failure(err.into())
     }
+}
 
-    impl Display for Plain<'_> {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(
-                f,
-                concat!("{BOLD}{STYLE}{ERROR}{RESET}", "{BOLD}:{RESET} ", "{error}"),
-                BOLD = Self::BOLD.render(),
-                STYLE = Self::STYLE.render(),
-                RESET = Reset.render(),
-                ERROR = Self::ERROR,
-                error = self.0
-            )?;
-            for cause in self.0.chain().skip(1) {
-                write!(
-                    f,
-                    concat!("\n", "{STYLE}{CAUSE}{RESET}", "{BOLD}:{RESET} ", "{cause}"),
-                    BOLD = Self::BOLD.render(),
-                    STYLE = Self::STYLE.render(),
-                    RESET = Reset.render(),
-                    CAUSE = Self::CAUSE,
-                    cause = cause,
-                )?;
+impl Termination for Exit {
+    fn report(self) -> ExitCode {
+        match self {
+            Exit::Success => ExitCode::SUCCESS,
+            Exit::Failure(err) => {
+                advise::error!("{err:#}");
+                err.into()
             }
-            Ok(())
         }
     }
 }
