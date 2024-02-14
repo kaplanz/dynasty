@@ -15,9 +15,18 @@ pub trait Provider {
     type Error;
 
     /// Prepares a request using the provider's API.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the request could not be prepered.
     fn request(&self, addr: IpAddr) -> Result<Request, Self::Error>;
 
     /// Reports on a response from the provider.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the response could not be
+    /// reported.
     fn report(&self, res: Response) -> Result<(), Self::Error>;
 }
 
@@ -31,6 +40,10 @@ pub enum Service {
 
 impl Service {
     /// Update DNS records for this service.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the update failed to execute.
     #[allow(unused)]
     pub async fn update(&self, addr: IpAddr) -> Result<Response, Error> {
         // Prepare an API request to the service
@@ -59,10 +72,13 @@ impl Provider for Service {
     }
 }
 
+/// An error caused by a service.
 #[derive(Debug, Error)]
 pub enum Error {
+    /// HTTP request error.
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
+    /// Cloudflare service error.
     #[error(transparent)]
     Cloudflare(#[from] cloudflare::Error),
 }
