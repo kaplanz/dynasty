@@ -2,6 +2,9 @@
 
 # dynasty
 
+[![rust workflow][ci.rust.badge]][ci.rust.hyper]
+[![dependency status][deps.badge]][deps.hyper]
+
 </div>
 
 Dynasty is a dynamic DNS client written in Rust and designed to be easily
@@ -114,3 +117,9 @@ automatically run Dynasty on startup if you're using it in daemon mode.
 [releases]:   https://github.com/kaplanz/dynasty/releases
 [runit]:      http://smarden.org/runit/
 [systemd]:    https://systemd.io
+
+<!-- Reference-style badges -->
+[ci.rust.badge]: /../../actions/workflows/rust.yml/badge.svg
+[ci.rust.hyper]: /../../actions/workflows/rust.yml
+[deps.badge]:    https://deps.rs/repo/github/kaplanz/dynasty/status.svg
+[deps.hyper]:    https://deps.rs/repo/github/kaplanz/dynasty
